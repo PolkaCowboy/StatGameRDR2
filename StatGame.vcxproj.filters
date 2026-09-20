@@ -1,0 +1,81 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="src">
+      <UniqueIdentifier>{6d4b3f21-9f4e-4a1c-9f3a-0c2b9b1d4e01}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="sdk">
+      <UniqueIdentifier>{6d4b3f21-9f4e-4a1c-9f3a-0c2b9b1d4e02}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\main.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\script.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\keyboard.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\log.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\config.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\paths.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ui.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\script.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\keyboard.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\log.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\config.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\paths.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ui.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\challenges.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sdk.h">
+      <Filter>sdk</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\SimpleIni.h">
+      <Filter>sdk</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\types.h">
+      <Filter>sdk</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\nativeCaller.h">
+      <Filter>sdk</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\natives.h">
+      <Filter>sdk</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\natives_v2.h">
+      <Filter>sdk</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\enums.h">
+      <Filter>sdk</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\main.h">
+      <Filter>sdk</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
