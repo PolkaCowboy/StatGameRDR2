@@ -7,6 +7,6 @@
 namespace Log
 {
 	void Init();
-
+	void SetEnabled(bool enabled);
 	void Write(const std::string &message);
 }

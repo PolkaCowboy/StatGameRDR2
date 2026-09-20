@@ -19,6 +19,8 @@ struct ModConfig
 	int LevelsLostOnMinorPunishment = 1;
 	int LevelsLostOnMajorPunishment = 2;
 
+	std::string VictoryMessage = "A winner is you!";
+
 	//Keys
 	DWORD MinorUpKey = VK_F13;
 	DWORD MajorUpKey = VK_F14;

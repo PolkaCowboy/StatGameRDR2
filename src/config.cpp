@@ -45,6 +45,7 @@ ModConfig LoadConfig()
 
 		ini.SetLongValue("General", "Levels lost on minor punishment", cfg.LevelsLostOnMinorPunishment);
 		ini.SetLongValue("General", "Levels lost on major punishment", cfg.LevelsLostOnMajorPunishment);
+		ini.SetValue("General", "Victory Message", cfg.VictoryMessage.c_str(), "; string");
 
 		ini.SetValue("Keys", nullptr, nullptr,
 			"; Virtual-key codes in hex. 0x82 = F19.\n"
@@ -73,6 +74,7 @@ ModConfig LoadConfig()
 
 	cfg.LevelsLostOnMinorPunishment = static_cast<int>(ini.GetLongValue("General", "Levels lost on minor punishment", cfg.LevelsLostOnMinorPunishment));
 	cfg.LevelsLostOnMajorPunishment = static_cast<int>(ini.GetLongValue("General", "Levels lost on major punishment", cfg.LevelsLostOnMajorPunishment));
+	cfg.VictoryMessage = ini.GetValue("General", "Victory Message", cfg.VictoryMessage.c_str());
 
 	cfg.MinorUpKey = static_cast<DWORD>(ini.GetLongValue("Keys", "Minor Up", cfg.MinorUpKey));
 	cfg.MajorUpKey = static_cast<DWORD>(ini.GetLongValue("Keys", "Major Up", cfg.MajorUpKey));

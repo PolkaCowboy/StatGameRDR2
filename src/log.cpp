@@ -11,6 +11,7 @@ namespace fs = std::filesystem;
 namespace
 {
 	std::string g_logPath;
+	bool g_enabled = true;
 }
 
 void Log::Init()
@@ -20,9 +21,14 @@ void Log::Init()
 	std::ofstream(g_logPath, std::ios::trunc);
 }
 
+void Log::SetEnabled(bool enabled)
+{
+	g_enabled = enabled;
+}
+
 void Log::Write(const std::string &message)
 {
-	if (g_logPath.empty())
+	if (!g_enabled || g_logPath.empty())
 		return;
 
 	std::ofstream file(g_logPath, std::ios::app);

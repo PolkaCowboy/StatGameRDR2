@@ -21,6 +21,13 @@ namespace
 		g_config.DeadEyeCoreLevel = ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_SPECIALABILITY);
 
 		SavePlayerStats(g_config);
+
+		if (ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_HEALTH) == 7 &&
+			ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_STAMINA) == 7 &&
+			ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_SPECIALABILITY) == 7) {
+			UI::DisplaySubtitle("A winner is you!");
+		}
+
 	}
 
 	const char* GetAttributeFriendlyName(ePedAttribute a){
@@ -39,12 +46,11 @@ namespace
 
 		if (IsKeyJustUp(g_config.LoadCoreValues)) {
 			g_config = LoadConfig();
-			if (g_config.enableTextLogging) {
-				Log::Write("Load key pressed");
-				Log::Write(std::format("Health: {0}", g_config.HealthCoreLevel));
-				Log::Write(std::format("Stamina: {0}", g_config.StaminaCoreLevel));
-				Log::Write(std::format("Deadeye: {0}", g_config.DeadEyeCoreLevel));
-			}
+			
+			Log::Write("Load key pressed");
+			Log::Write(std::format("Health: {0}", g_config.HealthCoreLevel));
+			Log::Write(std::format("Stamina: {0}", g_config.StaminaCoreLevel));
+			Log::Write(std::format("Deadeye: {0}", g_config.DeadEyeCoreLevel));
 
 			ATTRIBUTE::SET_ATTRIBUTE_BASE_RANK(player, PA_HEALTH, g_config.HealthCoreLevel);
 			ATTRIBUTE::SET_ATTRIBUTE_BASE_RANK(player, PA_STAMINA, g_config.StaminaCoreLevel);
@@ -53,10 +59,10 @@ namespace
 			UI::DisplaySubtitle(std::format("Player stats set to Health: {0}, Stamina: {1}, Deadeye: {2}", g_config.HealthCoreLevel, g_config.StaminaCoreLevel, g_config.DeadEyeCoreLevel).c_str());
 		}
 
+		//  Minor Up. +1 random stat. Can't go past the major breakpoint.
 		if (IsKeyJustUp(g_config.MinorUpKey)) {
-			if (g_config.enableTextLogging) {
-				Log::Write("Minor Up");
-			}
+			
+			Log::Write("Minor Up");
 
 			std::vector<ePedAttribute> eligableAttrs;
 
@@ -70,11 +76,8 @@ namespace
 				eligableAttrs.push_back(PA_SPECIALABILITY);
 			}
 			if (!eligableAttrs.empty()) {
-				
 				int i = MISC::GET_RANDOM_INT_IN_RANGE(0, static_cast<int>(eligableAttrs.size()));
-				if (g_config.enableTextLogging) {
-					Log::Write(std::format("{0} Chosen", GetAttributeFriendlyName(eligableAttrs[i])));
-				}
+				Log::Write(std::format("{0} Chosen", GetAttributeFriendlyName(eligableAttrs[i])));
 				UI::DisplaySubtitle(std::format("{0} Increased", GetAttributeFriendlyName(eligableAttrs[i])).c_str());
 				ChangeAndLogPlayerStat(player, eligableAttrs[i], 1);
 			}
@@ -84,6 +87,32 @@ namespace
 
 		}
 
+		// Major up. Can go all the way to the 8th tier. Can pick stats not yet at the breakpoint.
+		if (IsKeyJustUp(g_config.MajorUpKey)) {
+			Log::Write("Major Up");
+
+			std::vector<ePedAttribute> eligableAttrs;
+
+			if (ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_HEALTH) < 7) {
+				eligableAttrs.push_back(PA_HEALTH);
+			}
+			if (ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_STAMINA) < 7) {
+				eligableAttrs.push_back(PA_STAMINA);
+			}
+			if (ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_SPECIALABILITY) < 7) {
+				eligableAttrs.push_back(PA_SPECIALABILITY);
+			}
+
+			if (!eligableAttrs.empty()) {
+				int i = MISC::GET_RANDOM_INT_IN_RANGE(0, static_cast<int>(eligableAttrs.size()));
+				Log::Write(std::format("{0} Chosen", GetAttributeFriendlyName(eligableAttrs[i])));
+				UI::DisplaySubtitle(std::format("{0} Increased", GetAttributeFriendlyName(eligableAttrs[i])).c_str());
+				ChangeAndLogPlayerStat(player, eligableAttrs[i], 1);
+			}
+
+		}
+
+
 	}
 }
 
@@ -92,11 +121,10 @@ void ScriptMain()
 
 	g_config = LoadConfig();
 
-	if (g_config.enableTextLogging) {
-		Log::Init();
-		Log::Write("ScriptMain started");
-		UI::DisplaySubtitle("StatGame Enabled");
-	}
+	Log::SetEnabled(g_config.enableTextLogging);
+	Log::Init();
+	Log::Write("ScriptMain started");
+	UI::DisplaySubtitle("StatGame Enabled");
 
 	while (true)
 	{
