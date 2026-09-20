@@ -13,8 +13,8 @@ namespace
 	bool g_enabled = false;
 	ModConfig g_config;
 
-	void ChangeAndLogPlayerStat(Ped player, ePedAttribute attribute, int change) {
-		ATTRIBUTE::SET_ATTRIBUTE_BASE_RANK(player, attribute, ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, attribute) + change);
+	void ChangeAndLogPlayerStat(Ped player, ePedAttribute attribute, int newValue) {
+		ATTRIBUTE::SET_ATTRIBUTE_BASE_RANK(player, attribute, newValue);
 
 		g_config.HealthCoreLevel = ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_HEALTH);
 		g_config.StaminaCoreLevel = ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_STAMINA);
@@ -30,12 +30,13 @@ namespace
 
 	}
 
-	const char* GetAttributeFriendlyName(ePedAttribute a){
+	const char* GetAttributeFriendlyName(ePedAttribute a) {
 		switch (a) {
 			case PA_HEALTH: return "Health";
 			case PA_STAMINA: return "Stamina";
 			case PA_SPECIALABILITY: return "Dead Eye";
 		}
+		return "Unknown";
 	}
 
 	void OnTick()
@@ -44,7 +45,7 @@ namespace
 
 		if (IsKeyJustUp(g_config.LoadCoreValues)) {
 			g_config = LoadConfig();
-			
+
 			Log::Write("Load key pressed");
 			Log::Write(std::format("Health: {0}", g_config.HealthCoreLevel));
 			Log::Write(std::format("Stamina: {0}", g_config.StaminaCoreLevel));
@@ -59,8 +60,6 @@ namespace
 
 		//  Minor Up. +1 random stat. Can't go past the major breakpoint.
 		if (IsKeyJustUp(g_config.MinorUpKey)) {
-			
-			Log::Write("Minor Up");
 
 			std::vector<ePedAttribute> eligableAttrs;
 
@@ -75,9 +74,14 @@ namespace
 			}
 			if (!eligableAttrs.empty()) {
 				int i = MISC::GET_RANDOM_INT_IN_RANGE(0, static_cast<int>(eligableAttrs.size()));
-				Log::Write(std::format("{0} Chosen", GetAttributeFriendlyName(eligableAttrs[i])));
-				UI::DisplaySubtitle(std::format("{0} Increased", GetAttributeFriendlyName(eligableAttrs[i])).c_str());
-				ChangeAndLogPlayerStat(player, eligableAttrs[i], 1);
+
+				int newValue = ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, eligableAttrs[i]) + 1;
+				std::string message = std::format("Minor Increase: {0} increased to {1}", GetAttributeFriendlyName(eligableAttrs[i]), newValue);
+
+				Log::Write(message);
+				UI::DisplaySubtitle(message.c_str());
+
+				ChangeAndLogPlayerStat(player, eligableAttrs[i], newValue);
 			}
 			else {
 				UI::DisplaySubtitle("No eligiable stats for minor increase");
@@ -87,7 +91,6 @@ namespace
 
 		// Major up. Can go all the way to the 8th tier. Can pick stats not yet at the breakpoint.
 		if (IsKeyJustUp(g_config.MajorUpKey)) {
-			Log::Write("Major Up");
 
 			std::vector<ePedAttribute> eligableAttrs;
 
@@ -103,16 +106,19 @@ namespace
 
 			if (!eligableAttrs.empty()) {
 				int i = MISC::GET_RANDOM_INT_IN_RANGE(0, static_cast<int>(eligableAttrs.size()));
-				Log::Write(std::format("{0} Chosen", GetAttributeFriendlyName(eligableAttrs[i])));
-				UI::DisplaySubtitle(std::format("{0} Increased", GetAttributeFriendlyName(eligableAttrs[i])).c_str());
-				ChangeAndLogPlayerStat(player, eligableAttrs[i], 1);
+
+				int newValue = ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, eligableAttrs[i]) + 1;
+				std::string message = std::format("Major Increase: {0} increased to {1}", GetAttributeFriendlyName(eligableAttrs[i]), newValue);
+
+				Log::Write(message);
+				UI::DisplaySubtitle(message.c_str());
+
+				ChangeAndLogPlayerStat(player, eligableAttrs[i], newValue);
 			}
 		}
 
 		// Minor down. Pick one stat and drop it by 1.
 		if (IsKeyJustUp(g_config.MinorPunishKey)) {
-			Log::Write("Minor Punish");
-
 			std::vector<ePedAttribute> eligableAttrs;
 
 			if (ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_HEALTH) > 0) {
@@ -126,14 +132,73 @@ namespace
 			}
 
 			if (!eligableAttrs.empty()) {
+
 				int i = MISC::GET_RANDOM_INT_IN_RANGE(0, static_cast<int>(eligableAttrs.size()));
-				Log::Write(std::format("{0} Chosen", GetAttributeFriendlyName(eligableAttrs[i])));
-				UI::DisplaySubtitle(std::format("{0} decreased", GetAttributeFriendlyName(eligableAttrs[i])).c_str());
-				ChangeAndLogPlayerStat(player, eligableAttrs[i], -1);
+				int newValue = ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, eligableAttrs[i]) - 1;
+				std::string message = std::format("Minor Punishment: {0} decreased to {1}", GetAttributeFriendlyName(eligableAttrs[i]), newValue);
+
+				Log::Write(message);
+				UI::DisplaySubtitle(message.c_str());
+				ChangeAndLogPlayerStat(player, eligableAttrs[i], newValue);
 			}
 			else {
 				UI::DisplaySubtitle("No eligiable stats to decrease. Wow.");
 			}
+		}
+
+		//Major punish. -2 random skills.
+		if (IsKeyJustUp(g_config.MajorPunishKey)) {
+			std::vector<ePedAttribute> reducedAttrs;
+			for (int i = 0; i <= 1; i++) {
+				std::vector<ePedAttribute> eligableAttrs;
+
+				if (ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_HEALTH) > 0) {
+					eligableAttrs.push_back(PA_HEALTH);
+				}
+				if (ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_STAMINA) > 0) {
+					eligableAttrs.push_back(PA_STAMINA);
+				}
+				if (ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_SPECIALABILITY) > 0) {
+					eligableAttrs.push_back(PA_SPECIALABILITY);
+				}
+
+				if (!eligableAttrs.empty()) {
+					int i = MISC::GET_RANDOM_INT_IN_RANGE(0, static_cast<int>(eligableAttrs.size()));
+					reducedAttrs.push_back(eligableAttrs[i]);
+					int newValue = ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, eligableAttrs[i]) - 1;
+					ChangeAndLogPlayerStat(player, eligableAttrs[i], newValue);
+				}
+			}
+
+			if (!reducedAttrs.empty()) {
+				std::string message;
+
+				if (reducedAttrs.size() == 2 && reducedAttrs[0] == reducedAttrs[1]) {
+					message = std::format("Major Punish: {0} reduced by 2 to {1}",
+						GetAttributeFriendlyName(reducedAttrs[0]),
+						ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, reducedAttrs[0]));
+				}
+				else {
+					message = "Major Punish: ";
+
+					for (size_t n = 0; n < reducedAttrs.size(); n++) {
+						if (n > 0) {
+							message += ", ";
+						}
+
+						message += std::format("{0} reduced to {1}",
+							GetAttributeFriendlyName(reducedAttrs[n]),
+							ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, reducedAttrs[n]));
+					}
+				}
+
+				Log::Write(message);
+				UI::DisplaySubtitle(message.c_str());
+			}
+			else {
+				UI::DisplaySubtitle("No eligiable stats to decrease. Wow.");
+			}
+
 		}
 
 	}
