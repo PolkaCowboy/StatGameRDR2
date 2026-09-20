@@ -42,8 +42,6 @@ namespace
 	{
 		Ped player = PLAYER::PLAYER_PED_ID();
 
-		//UI::DrawDebugText(std::format("Stamina points: {}", ATTRIBUTE::GET_ATTRIBUTE_POINTS(player, PA_STAMINA)).c_str());
-
 		if (IsKeyJustUp(g_config.LoadCoreValues)) {
 			g_config = LoadConfig();
 			
@@ -109,9 +107,34 @@ namespace
 				UI::DisplaySubtitle(std::format("{0} Increased", GetAttributeFriendlyName(eligableAttrs[i])).c_str());
 				ChangeAndLogPlayerStat(player, eligableAttrs[i], 1);
 			}
-
 		}
 
+		// Minor down. Pick one stat and drop it by 1.
+		if (IsKeyJustUp(g_config.MinorPunishKey)) {
+			Log::Write("Minor Punish");
+
+			std::vector<ePedAttribute> eligableAttrs;
+
+			if (ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_HEALTH) > 0) {
+				eligableAttrs.push_back(PA_HEALTH);
+			}
+			if (ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_STAMINA) > 0) {
+				eligableAttrs.push_back(PA_STAMINA);
+			}
+			if (ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_SPECIALABILITY) > 0) {
+				eligableAttrs.push_back(PA_SPECIALABILITY);
+			}
+
+			if (!eligableAttrs.empty()) {
+				int i = MISC::GET_RANDOM_INT_IN_RANGE(0, static_cast<int>(eligableAttrs.size()));
+				Log::Write(std::format("{0} Chosen", GetAttributeFriendlyName(eligableAttrs[i])));
+				UI::DisplaySubtitle(std::format("{0} decreased", GetAttributeFriendlyName(eligableAttrs[i])).c_str());
+				ChangeAndLogPlayerStat(player, eligableAttrs[i], -1);
+			}
+			else {
+				UI::DisplaySubtitle("No eligiable stats to decrease. Wow.");
+			}
+		}
 
 	}
 }

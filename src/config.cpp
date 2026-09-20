@@ -45,7 +45,7 @@ ModConfig LoadConfig()
 
 		ini.SetLongValue("General", "Levels lost on minor punishment", cfg.LevelsLostOnMinorPunishment);
 		ini.SetLongValue("General", "Levels lost on major punishment", cfg.LevelsLostOnMajorPunishment);
-		ini.SetValue("General", "Victory Message", cfg.VictoryMessage.c_str(), "; string");
+		ini.SetValue("General", "Victory Message", cfg.VictoryMessage.c_str());
 
 		ini.SetValue("Keys", nullptr, nullptr,
 			"; Virtual-key codes in hex. 0x82 = F19.\n"
