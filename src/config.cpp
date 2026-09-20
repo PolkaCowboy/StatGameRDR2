@@ -7,16 +7,23 @@
 
 namespace fs = std::filesystem;
 
+namespace
+{
+	const std::string& ConfigPath()
+	{
+		static const std::string path = (fs::path(ModDataDir()) / "config.ini").string();
+		return path;
+	}
+}
+
 ModConfig LoadConfig()
 {
 	ModConfig cfg; // defaults from config.h
 
-	const std::string path = (fs::path(ModDataDir()) / "config.ini").string();
-
 	CSimpleIniA ini;
 	ini.SetUnicode();
 
-	if (!fs::exists(path))
+	if (!fs::exists(ConfigPath()))
 	{
 		// First run: write the defaults out so there is something to edit.
 		ini.SetValue("Cores", nullptr, nullptr, 
@@ -48,12 +55,12 @@ ModConfig LoadConfig()
 		ini.SetLongValue("Keys", "Major Punish", cfg.MajorPunishKey, "; F16", true);
 		ini.SetLongValue("Keys", "Load Cores From File", cfg.LoadCoreValues, "; F17", true);
 
-		ini.SaveFile(path.c_str(), false);
+		ini.SaveFile(ConfigPath().c_str(), false);
 		return cfg;
 	}
 
 	// Exists but unreadable: use the defaults rather than clobbering the file.
-	if (ini.LoadFile(path.c_str()) < 0)
+	if (ini.LoadFile(ConfigPath().c_str()) < 0)
 		return cfg;
 
 	cfg.HealthCoreLevel = static_cast<int>(ini.GetLongValue("Cores", "Health", cfg.HealthCoreLevel));
@@ -77,4 +84,20 @@ ModConfig LoadConfig()
 	cfg.enableTextLogging = ini.GetBoolValue("Debug", "EnableTextLogging", cfg.enableTextLogging);
 
 	return cfg;
+}
+
+void SavePlayerStats(const ModConfig& cfg)
+{
+
+	CSimpleIniA ini;
+	ini.SetUnicode();
+
+	if (ini.LoadFile(ConfigPath().c_str()) < 0)
+		return;
+
+	ini.SetLongValue("Cores", "Health", cfg.HealthCoreLevel);
+	ini.SetLongValue("Cores", "Stamina", cfg.StaminaCoreLevel);
+	ini.SetLongValue("Cores", "DeadEye", cfg.DeadEyeCoreLevel);
+
+	ini.SaveFile(ConfigPath().c_str(), false);
 }

@@ -33,3 +33,4 @@ struct ModConfig
 };
 
 ModConfig LoadConfig();
+void SavePlayerStats(const ModConfig& cfg);
