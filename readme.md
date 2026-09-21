@@ -7,3 +7,7 @@ Currently this only operates on ranks 0-7 as I gave up trying to figure out how 
 My [minimal unlock save files](https://codeberg.org/PolkaCowboy/Polka-SaveGames) have no challenges completed if you want to use this as a depraved John or Arthur.
 
 //TODO: Rest of this documentation
+
+# Installation
+
+This mod was written for [ScriptHookRDR2 V2](https://www.nexusmods.com/reddeadredemption2/mods/1472). [Here is a guide](https://steamcommunity.com/sharedfiles/filedetails/?id=3415519392 on how to set up your game to run mods using ScriptHookRDR2 V2). You only need to do steps **Script Hook** and **ASI Loader** for this mod. Lenny's Mod Loader and anythign after is not required. 
