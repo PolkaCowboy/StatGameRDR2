@@ -1,0 +1,27 @@
+{
+  "_comments": "Only one item from rewardPool gets picked ever. Useful if you say want to give a hat, but it is a random hat",
+  "major": [
+    {
+      "rewarded": false,
+      "rewardPool": [
+        "Lumbago"
+      ]
+    }
+  ],
+  "minor": [
+    {
+      "rewarded": false,
+      "rewardPool": [
+        "Rat Flap Cap",
+        "Tricorn Hat",
+        "Micah's Hat"
+      ]
+    },
+    {
+      "rewarded": false,
+      "rewardPool": [
+        "Lasso"
+      ]
+    }
+  ]
+}

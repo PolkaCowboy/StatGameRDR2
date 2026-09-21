@@ -4,17 +4,27 @@
 #include "config.h"
 #include "ui.h"
 #include "challenges.h"
+#include "rewards.h"
 
 #include <format>
 #include <vector>
+#include <algorithm>
+#include <random>
 
 namespace
 {
 	bool g_enabled = false;
 	ModConfig g_config;
+	Rewards rewards;
 
 	// Highest rank SET_ATTRIBUTE_BASE_RANK will accept - anything above clamps to this.
 	constexpr int kMaxRank = 7;
+
+	std::mt19937& Rng()
+	{
+		static std::mt19937 rng(std::random_device{}());
+		return rng;
+	}
 
 	void SyncAndSavePlayerStats(Ped player) {
 		g_config.HealthCoreLevel = ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_HEALTH);
@@ -95,7 +105,7 @@ namespace
 					message += ", ";
 				}
 
-				message += std::format("{0} reduced by {1} to {2}",
+				message += std::format("{} reduced by {} to {}",
 					GetAttributeFriendlyName(tally[n].first),
 					tally[n].second,
 					ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, tally[n].first));
@@ -109,7 +119,7 @@ namespace
 		}
 	}
 
-	void Award(Ped player, bool isMinorUp) {
+	std::string Boost(Ped player, bool isMinorUp) {
 		std::vector<ePedAttribute> eligableAttrs;
 
 		if (ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_HEALTH) < (isMinorUp ? g_config.HealthCoreMajorBreakpoint : kMaxRank)) {
@@ -129,19 +139,72 @@ namespace
 
 			SyncAndSavePlayerStats(player);
 
-			std::string message = std::format("{0} Increase: {1} increased to {2}",
+			std::string message = std::format("{} Increase: {} increased to {}",
 				isMinorUp ? "Minor" : "Major",
 				GetAttributeFriendlyName(eligableAttrs[i]),
 				ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, eligableAttrs[i]));
 
 			Log::Write(message);
 			if (!CheckForVictory(player)) {
-				UI::DisplaySubtitle(message.c_str());
+				return message;
 			}
 		}
 		else if (isMinorUp) {
-			UI::DisplaySubtitle("No eligiable stats for minor increase");
+			return "No eligiable stats for minor increase";
 		}
+		return "";
+	}
+
+	std::string RewardMinor(Ped player) {
+		int totalMinorStatPoints = 
+			g_config.HealthCoreMajorBreakpoint 
+			+ g_config.StaminaCoreMajorBreakpoint 
+			+ g_config.DeadEyeCoreMajorBreakpoint;
+
+		int totalPlayerMinorStatPoints =
+			std::min(ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_HEALTH), g_config.HealthCoreMajorBreakpoint)
+			+ std::min(ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_STAMINA), g_config.StaminaCoreMajorBreakpoint)
+			+ std::min(ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_SPECIALABILITY), g_config.DeadEyeCoreMajorBreakpoint);
+
+		Log::Write(std::format("Player has {} of {} minor stat points", totalPlayerMinorStatPoints, totalMinorStatPoints));
+
+		std::uniform_int_distribution<int> dist(1, totalMinorStatPoints);
+		int roll = dist(Rng());
+
+		Log::Write(std::format("Rolled {} <= {}", roll, totalPlayerMinorStatPoints));
+		if (roll <= totalPlayerMinorStatPoints) {
+			//Find rewards that haven't been handed out
+			std::vector<size_t> eligible;
+			for (size_t i = 0; i < rewards.minor.size(); i++) {
+				if (!rewards.minor[i].rewarded && !rewards.minor[i].rewardPool.empty()) {
+					eligible.push_back(i);
+				}
+			}
+
+			if (eligible.empty()) {
+				Log::Write("No eligable rewards");
+				return "";
+			}
+
+			//Pick a Reward Pool
+			std::uniform_int_distribution<size_t> rewardDist(0, eligible.size() - 1);
+			Reward& reward = rewards.minor[eligible[rewardDist(Rng())]];
+
+			//Select actual item from the pool.
+			std::uniform_int_distribution<size_t> poolDist(0, reward.rewardPool.size() - 1);
+			const std::string& rewardedItem = reward.rewardPool[poolDist(Rng())];
+
+			Log::Write(std::format("Rewarding {}", rewardedItem));
+
+			//Log it and ship it.
+			reward.rewarded = true;
+			SaveRewards(rewards);
+			return std::format(" \nYou've been rewarded \"{}\"", rewardedItem);
+		}
+		else {
+			Log::Write("No Reward. Try again");
+		}
+		return "";
 	}
 
 	void OnTick()
@@ -150,27 +213,31 @@ namespace
 
 		if (IsKeyJustUp(g_config.LoadCoreValues)) {
 			g_config = LoadConfig();
+			rewards = LoadRewards();
 
 			Log::Write("Load key pressed");
-			Log::Write(std::format("Health: {0}", g_config.HealthCoreLevel));
-			Log::Write(std::format("Stamina: {0}", g_config.StaminaCoreLevel));
-			Log::Write(std::format("Deadeye: {0}", g_config.DeadEyeCoreLevel));
+			Log::Write(std::format("Health: {}", g_config.HealthCoreLevel));
+			Log::Write(std::format("Stamina: {}", g_config.StaminaCoreLevel));
+			Log::Write(std::format("Deadeye: {}", g_config.DeadEyeCoreLevel));
 
 			ATTRIBUTE::SET_ATTRIBUTE_BASE_RANK(player, PA_HEALTH, g_config.HealthCoreLevel);
 			ATTRIBUTE::SET_ATTRIBUTE_BASE_RANK(player, PA_STAMINA, g_config.StaminaCoreLevel);
 			ATTRIBUTE::SET_ATTRIBUTE_BASE_RANK(player, PA_SPECIALABILITY, g_config.DeadEyeCoreLevel);
 
-			UI::DisplaySubtitle(std::format("Player stats set to Health: {0}, Stamina: {1}, Deadeye: {2}", g_config.HealthCoreLevel, g_config.StaminaCoreLevel, g_config.DeadEyeCoreLevel).c_str());
+			UI::DisplaySubtitle(std::format("Player stats set to Health: {}, Stamina: {}, Deadeye: {}", g_config.HealthCoreLevel, g_config.StaminaCoreLevel, g_config.DeadEyeCoreLevel).c_str());
 		}
 
 		//  Minor Up. +1 random stat. Can't go past the major breakpoint.
 		if (IsKeyJustUp(g_config.MinorUpKey)) {
-			Award(player, true);
+			std::string message = Boost(player, true);
+			message += RewardMinor(player);
+			UI::DisplaySubtitle(message.c_str());
 		}
 
 		// Major up. Can go all the way to the 8th tier. Can pick stats not yet at the breakpoint.
 		if (IsKeyJustUp(g_config.MajorUpKey)) {
-			Award(player, false);
+			std::string message = Boost(player, false);
+			UI::DisplaySubtitle(message.c_str());
 		}
 
 		// Minor punish. 
@@ -190,6 +257,7 @@ void ScriptMain()
 {
 
 	g_config = LoadConfig();
+	rewards = LoadRewards();
 
 	Log::SetEnabled(g_config.enableTextLogging);
 	Log::Init();
