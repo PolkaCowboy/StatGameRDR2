@@ -13,20 +13,25 @@ namespace
 	bool g_enabled = false;
 	ModConfig g_config;
 
-	void ChangeAndLogPlayerStat(Ped player, ePedAttribute attribute, int newValue) {
-		ATTRIBUTE::SET_ATTRIBUTE_BASE_RANK(player, attribute, newValue);
+	// Highest rank SET_ATTRIBUTE_BASE_RANK will accept - anything above clamps to this.
+	constexpr int kMaxRank = 7;
 
+	void SyncAndSavePlayerStats(Ped player) {
 		g_config.HealthCoreLevel = ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_HEALTH);
 		g_config.StaminaCoreLevel = ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_STAMINA);
 		g_config.DeadEyeCoreLevel = ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_SPECIALABILITY);
 
 		SavePlayerStats(g_config);
+	}
 
-		if (ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_HEALTH) == 7 &&
-			ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_STAMINA) == 7 &&
-			ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_SPECIALABILITY) == 7) {
-			UI::DisplaySubtitle("A winner is you!");
+	bool CheckForVictory(Ped player) {
+		if (ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_HEALTH) == kMaxRank &&
+			ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_STAMINA) == kMaxRank &&
+			ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_SPECIALABILITY) == kMaxRank) {
+			UI::DisplaySubtitle(g_config.VictoryMessage.c_str());
+			return true;
 		}
+		return false;
 	}
 
 	const char* GetAttributeFriendlyName(ePedAttribute a) {
@@ -58,11 +63,13 @@ namespace
 				int pick = MISC::GET_RANDOM_INT_IN_RANGE(0, static_cast<int>(eligableAttrs.size()));
 				reducedAttrs.push_back(eligableAttrs[pick]);
 				int newValue = ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, eligableAttrs[pick]) - 1;
-				ChangeAndLogPlayerStat(player, eligableAttrs[pick], newValue);
+				ATTRIBUTE::SET_ATTRIBUTE_BASE_RANK(player, eligableAttrs[pick], newValue);
 			}
 		}
 
 		if (!reducedAttrs.empty()) {
+			SyncAndSavePlayerStats(player);
+
 			std::vector<std::pair<ePedAttribute, int>> tally;
 
 			for (ePedAttribute a : reducedAttrs) {
@@ -105,25 +112,32 @@ namespace
 	void Award(Ped player, bool isMinorUp) {
 		std::vector<ePedAttribute> eligableAttrs;
 
-		if (ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_HEALTH) < (isMinorUp ? g_config.HealthCoreMajorBreakpoint : 7)) {
+		if (ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_HEALTH) < (isMinorUp ? g_config.HealthCoreMajorBreakpoint : kMaxRank)) {
 			eligableAttrs.push_back(PA_HEALTH);
 		}
-		if (ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_STAMINA) < (isMinorUp ? g_config.StaminaCoreMajorBreakpoint : 7)) {
+		if (ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_STAMINA) < (isMinorUp ? g_config.StaminaCoreMajorBreakpoint : kMaxRank)) {
 			eligableAttrs.push_back(PA_STAMINA);
 		}
-		if (ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_SPECIALABILITY) < (isMinorUp ? g_config.DeadEyeCoreMajorBreakpoint : 7)) {
+		if (ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_SPECIALABILITY) < (isMinorUp ? g_config.DeadEyeCoreMajorBreakpoint : kMaxRank)) {
 			eligableAttrs.push_back(PA_SPECIALABILITY);
 		}
 		if (!eligableAttrs.empty()) {
 			int i = MISC::GET_RANDOM_INT_IN_RANGE(0, static_cast<int>(eligableAttrs.size()));
 
 			int newValue = ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, eligableAttrs[i]) + 1;
-			std::string message = std::format("{0} Increase: {1} increased to {2}", isMinorUp ? "Minor" : "Major", GetAttributeFriendlyName(eligableAttrs[i]), newValue);
+			ATTRIBUTE::SET_ATTRIBUTE_BASE_RANK(player, eligableAttrs[i], newValue);
+
+			SyncAndSavePlayerStats(player);
+
+			std::string message = std::format("{0} Increase: {1} increased to {2}",
+				isMinorUp ? "Minor" : "Major",
+				GetAttributeFriendlyName(eligableAttrs[i]),
+				ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, eligableAttrs[i]));
 
 			Log::Write(message);
-			UI::DisplaySubtitle(message.c_str());
-
-			ChangeAndLogPlayerStat(player, eligableAttrs[i], newValue);
+			if (!CheckForVictory(player)) {
+				UI::DisplaySubtitle(message.c_str());
+			}
 		}
 		else if (isMinorUp) {
 			UI::DisplaySubtitle("No eligiable stats for minor increase");
