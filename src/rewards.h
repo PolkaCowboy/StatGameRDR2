@@ -9,19 +9,19 @@ struct Reward
 {
 	bool rewarded = false;
 	std::vector<std::string> rewardPool;
+	std::string rewardedItem = "";
 };
 
 struct Rewards
 {
-	std::vector<Reward> major;
-	std::vector<Reward> minor;
+	std::vector<Reward> rewards;
 };
 
 // Generates the JSON conversions from the member list, so adding a field above
 // picks it up automatically. _WITH_DEFAULT leaves the struct initialiser alone
 // when a key is missing instead of throwing.
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Reward, rewarded, rewardPool)
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Rewards, major, minor)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Reward, rewarded, rewardPool, rewardedItem)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Rewards, rewards)
 
 Rewards LoadRewards();
-void SaveRewards(const Rewards& rewards);
+bool SaveRewards(const Rewards& rewards);

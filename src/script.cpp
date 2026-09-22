@@ -155,10 +155,10 @@ namespace
 		return "";
 	}
 
-	std::string RewardMinor(Ped player) {
-		int totalMinorStatPoints = 
-			g_config.HealthCoreMajorBreakpoint 
-			+ g_config.StaminaCoreMajorBreakpoint 
+	std::string RewardGiftMaybe(Ped player) {
+		int totalMinorStatPoints =
+			g_config.HealthCoreMajorBreakpoint
+			+ g_config.StaminaCoreMajorBreakpoint
 			+ g_config.DeadEyeCoreMajorBreakpoint;
 
 		int totalPlayerMinorStatPoints =
@@ -175,8 +175,8 @@ namespace
 		if (roll <= totalPlayerMinorStatPoints) {
 			//Find rewards that haven't been handed out
 			std::vector<size_t> eligible;
-			for (size_t i = 0; i < rewards.minor.size(); i++) {
-				if (!rewards.minor[i].rewarded && !rewards.minor[i].rewardPool.empty()) {
+			for (size_t i = 0; i < rewards.rewards.size(); i++) {
+				if (!rewards.rewards[i].rewarded && !rewards.rewards[i].rewardPool.empty()) {
 					eligible.push_back(i);
 				}
 			}
@@ -188,7 +188,7 @@ namespace
 
 			//Pick a Reward Pool
 			std::uniform_int_distribution<size_t> rewardDist(0, eligible.size() - 1);
-			Reward& reward = rewards.minor[eligible[rewardDist(Rng())]];
+			Reward& reward = rewards.rewards[eligible[rewardDist(Rng())]];
 
 			//Select actual item from the pool.
 			std::uniform_int_distribution<size_t> poolDist(0, reward.rewardPool.size() - 1);
@@ -198,7 +198,11 @@ namespace
 
 			//Log it and ship it.
 			reward.rewarded = true;
-			SaveRewards(rewards);
+			reward.rewardedItem = rewardedItem;
+			if (!SaveRewards(rewards)) {
+				Log::Write("Failed to save rewards.json - this reward may be handed out again");
+				return std::format(" \nYou've been rewarded \"{}\", (but the .json save failed)", rewardedItem);
+			}
 			return std::format(" \nYou've been rewarded \"{}\"", rewardedItem);
 		}
 		else {
@@ -230,14 +234,19 @@ namespace
 		//  Minor Up. +1 random stat. Can't go past the major breakpoint.
 		if (IsKeyJustUp(g_config.MinorUpKey)) {
 			std::string message = Boost(player, true);
-			message += RewardMinor(player);
-			UI::DisplaySubtitle(message.c_str());
+			message += RewardGiftMaybe(player);
+			if (!message.empty()) {
+				UI::DisplaySubtitle(message.c_str());
+			}
 		}
 
 		// Major up. Can go all the way to the 8th tier. Can pick stats not yet at the breakpoint.
 		if (IsKeyJustUp(g_config.MajorUpKey)) {
 			std::string message = Boost(player, false);
-			UI::DisplaySubtitle(message.c_str());
+			message += RewardGiftMaybe(player);
+			if (!message.empty()) {
+				UI::DisplaySubtitle(message.c_str());
+			}
 		}
 
 		// Minor punish. 

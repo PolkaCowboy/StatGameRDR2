@@ -37,8 +37,13 @@ Rewards LoadRewards() {
 
 }
 
-void SaveRewards(const Rewards& rewards) {
-	nlohmann::json j = rewards;
+bool SaveRewards(const Rewards& rewards) {
 	std::ofstream file(RewardsPath());
-	file << j.dump(2);   // 2 = indent, otherwise it's one unreadable line
+	if (!file)
+		return false;
+
+	file << nlohmann::json(rewards).dump(2); // 2 = indent, otherwise it's one unreadable line
+
+	file.close();
+	return file.good();  
 }
