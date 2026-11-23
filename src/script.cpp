@@ -20,24 +20,52 @@ namespace
 	// Highest rank SET_ATTRIBUTE_BASE_RANK will accept - anything above clamps to this.
 	constexpr int kMaxRank = 7;
 
+	// Set once the levels are loaded or changed; from then on the game's ranks are held on them.
+	bool g_holdLevels = false;
+
 	std::mt19937& Rng()
 	{
 		static std::mt19937 rng(std::random_device{}());
 		return rng;
 	}
 
-	void SyncAndSavePlayerStats(Ped player) {
-		g_config.HealthCoreLevel = ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_HEALTH);
-		g_config.StaminaCoreLevel = ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_STAMINA);
-		g_config.DeadEyeCoreLevel = ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_SPECIALABILITY);
+	// StatGame's levels are the record. The game's ranks only follow them.
+	int& CoreLevel(ePedAttribute a) {
+		switch (a) {
+		case PA_STAMINA: return g_config.StaminaCoreLevel;
+		case PA_SPECIALABILITY: return g_config.DeadEyeCoreLevel;
+		default: return g_config.HealthCoreLevel;
+		}
+	}
 
+	// The game levels cores from XP on its own (running earns stamina XP) and works the rank out again
+	// from the XP total, undoing SET_ATTRIBUTE_BASE_RANK. So the XP is held at the start of each level,
+	// which is how Rockstar sets a horse's bonding level (abigail2_1.c func_1787).
+	// https://github.com/JayKoZa/RDR2-Decompiled-Scripts/blob/master/script_rel/abigail2_1.c
+	void ApplyLevels(Ped player) {
+		Hash model = ENTITY::GET_ENTITY_MODEL(player);
+		for (ePedAttribute a : { PA_HEALTH, PA_STAMINA, PA_SPECIALABILITY }) {
+			int level = CoreLevel(a);
+			int points = ATTRIBUTE::GET_DEFAULT_ATTRIBUTE_POINTS_NEEDED_FOR_RANK(model, a, level);
+			if (ATTRIBUTE::GET_ATTRIBUTE_POINTS(player, a) != points) {
+				ATTRIBUTE::SET_ATTRIBUTE_POINTS(player, a, points);
+			}
+			if (ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, a) != level) {
+				ATTRIBUTE::SET_ATTRIBUTE_BASE_RANK(player, a, level);
+			}
+		}
+	}
+
+	void ApplyAndSaveLevels(Ped player) {
+		g_holdLevels = true;
+		ApplyLevels(player);
 		SavePlayerStats(g_config);
 	}
 
-	bool CheckForVictory(Ped player) {
-		if (ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_HEALTH) == kMaxRank &&
-			ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_STAMINA) == kMaxRank &&
-			ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_SPECIALABILITY) == kMaxRank) {
+	bool CheckForVictory() {
+		if (CoreLevel(PA_HEALTH) == kMaxRank &&
+			CoreLevel(PA_STAMINA) == kMaxRank &&
+			CoreLevel(PA_SPECIALABILITY) == kMaxRank) {
 			UI::DisplaySubtitle(g_config.VictoryMessage.c_str());
 			return true;
 		}
@@ -59,26 +87,25 @@ namespace
 		for (int n = 0; n < statRanksToRemove; n++) {
 			std::vector<ePedAttribute> eligableAttrs;
 
-			if (ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_HEALTH) > 0) {
+			if (CoreLevel(PA_HEALTH) > 0) {
 				eligableAttrs.push_back(PA_HEALTH);
 			}
-			if (ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_STAMINA) > 0) {
+			if (CoreLevel(PA_STAMINA) > 0) {
 				eligableAttrs.push_back(PA_STAMINA);
 			}
-			if (ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_SPECIALABILITY) > 0) {
+			if (CoreLevel(PA_SPECIALABILITY) > 0) {
 				eligableAttrs.push_back(PA_SPECIALABILITY);
 			}
 
 			if (!eligableAttrs.empty()) {
 				int pick = MISC::GET_RANDOM_INT_IN_RANGE(0, static_cast<int>(eligableAttrs.size()));
 				reducedAttrs.push_back(eligableAttrs[pick]);
-				int newValue = ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, eligableAttrs[pick]) - 1;
-				ATTRIBUTE::SET_ATTRIBUTE_BASE_RANK(player, eligableAttrs[pick], newValue);
+				CoreLevel(eligableAttrs[pick])--;
 			}
 		}
 
 		if (!reducedAttrs.empty()) {
-			SyncAndSavePlayerStats(player);
+			ApplyAndSaveLevels(player);
 
 			std::vector<std::pair<ePedAttribute, int>> tally;
 
@@ -108,7 +135,7 @@ namespace
 				message += std::format("{} reduced by {} to {}",
 					GetAttributeFriendlyName(tally[n].first),
 					tally[n].second,
-					ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, tally[n].first));
+					CoreLevel(tally[n].first));
 			}
 
 			Log::Write(message);
@@ -122,30 +149,28 @@ namespace
 	std::string Boost(Ped player, bool isMinorUp) {
 		std::vector<ePedAttribute> eligableAttrs;
 
-		if (ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_HEALTH) < (isMinorUp ? g_config.HealthCoreMajorBreakpoint : kMaxRank)) {
+		if (CoreLevel(PA_HEALTH) < (isMinorUp ? g_config.HealthCoreMajorBreakpoint : kMaxRank)) {
 			eligableAttrs.push_back(PA_HEALTH);
 		}
-		if (ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_STAMINA) < (isMinorUp ? g_config.StaminaCoreMajorBreakpoint : kMaxRank)) {
+		if (CoreLevel(PA_STAMINA) < (isMinorUp ? g_config.StaminaCoreMajorBreakpoint : kMaxRank)) {
 			eligableAttrs.push_back(PA_STAMINA);
 		}
-		if (ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_SPECIALABILITY) < (isMinorUp ? g_config.DeadEyeCoreMajorBreakpoint : kMaxRank)) {
+		if (CoreLevel(PA_SPECIALABILITY) < (isMinorUp ? g_config.DeadEyeCoreMajorBreakpoint : kMaxRank)) {
 			eligableAttrs.push_back(PA_SPECIALABILITY);
 		}
 		if (!eligableAttrs.empty()) {
 			int i = MISC::GET_RANDOM_INT_IN_RANGE(0, static_cast<int>(eligableAttrs.size()));
 
-			int newValue = ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, eligableAttrs[i]) + 1;
-			ATTRIBUTE::SET_ATTRIBUTE_BASE_RANK(player, eligableAttrs[i], newValue);
-
-			SyncAndSavePlayerStats(player);
+			CoreLevel(eligableAttrs[i])++;
+			ApplyAndSaveLevels(player);
 
 			std::string message = std::format("{} Increase: {} increased to {}",
 				isMinorUp ? "Minor" : "Major",
 				GetAttributeFriendlyName(eligableAttrs[i]),
-				ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, eligableAttrs[i]));
+				CoreLevel(eligableAttrs[i]));
 
 			Log::Write(message);
-			if (!CheckForVictory(player)) {
+			if (!CheckForVictory()) {
 				return message;
 			}
 		}
@@ -155,16 +180,16 @@ namespace
 		return "";
 	}
 
-	std::string RewardGiftMaybe(Ped player) {
+	std::string RewardGiftMaybe() {
 		int totalMinorStatPoints =
 			g_config.HealthCoreMajorBreakpoint
 			+ g_config.StaminaCoreMajorBreakpoint
 			+ g_config.DeadEyeCoreMajorBreakpoint;
 
 		int totalPlayerMinorStatPoints =
-			std::min(ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_HEALTH), g_config.HealthCoreMajorBreakpoint)
-			+ std::min(ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_STAMINA), g_config.StaminaCoreMajorBreakpoint)
-			+ std::min(ATTRIBUTE::GET_ATTRIBUTE_BASE_RANK(player, PA_SPECIALABILITY), g_config.DeadEyeCoreMajorBreakpoint);
+			std::min(CoreLevel(PA_HEALTH), g_config.HealthCoreMajorBreakpoint)
+			+ std::min(CoreLevel(PA_STAMINA), g_config.StaminaCoreMajorBreakpoint)
+			+ std::min(CoreLevel(PA_SPECIALABILITY), g_config.DeadEyeCoreMajorBreakpoint);
 
 		Log::Write(std::format("Player has {} of {} minor stat points", totalPlayerMinorStatPoints, totalMinorStatPoints));
 
@@ -215,6 +240,10 @@ namespace
 	{
 		Ped player = PLAYER::PLAYER_PED_ID();
 
+		if (g_holdLevels && ENTITY::DOES_ENTITY_EXIST(player)) {
+			ApplyLevels(player);
+		}
+
 		if (IsKeyJustUp(g_config.LoadCoreValues)) {
 			g_config = LoadConfig();
 			rewards = LoadRewards();
@@ -224,9 +253,8 @@ namespace
 			Log::Write(std::format("Stamina: {}", g_config.StaminaCoreLevel));
 			Log::Write(std::format("Deadeye: {}", g_config.DeadEyeCoreLevel));
 
-			ATTRIBUTE::SET_ATTRIBUTE_BASE_RANK(player, PA_HEALTH, g_config.HealthCoreLevel);
-			ATTRIBUTE::SET_ATTRIBUTE_BASE_RANK(player, PA_STAMINA, g_config.StaminaCoreLevel);
-			ATTRIBUTE::SET_ATTRIBUTE_BASE_RANK(player, PA_SPECIALABILITY, g_config.DeadEyeCoreLevel);
+			g_holdLevels = true;
+			ApplyLevels(player);
 
 			UI::DisplaySubtitle(std::format("Player stats set to Health: {}, Stamina: {}, Deadeye: {}", g_config.HealthCoreLevel, g_config.StaminaCoreLevel, g_config.DeadEyeCoreLevel).c_str());
 		}
@@ -234,7 +262,7 @@ namespace
 		//  Minor Up. +1 random stat. Can't go past the major breakpoint.
 		if (IsKeyJustUp(g_config.MinorUpKey)) {
 			std::string message = Boost(player, true);
-			message += RewardGiftMaybe(player);
+			message += RewardGiftMaybe();
 			if (!message.empty()) {
 				UI::DisplaySubtitle(message.c_str());
 			}
@@ -243,7 +271,7 @@ namespace
 		// Major up. Can go all the way to the 8th tier. Can pick stats not yet at the breakpoint.
 		if (IsKeyJustUp(g_config.MajorUpKey)) {
 			std::string message = Boost(player, false);
-			message += RewardGiftMaybe(player);
+			message += RewardGiftMaybe();
 			if (!message.empty()) {
 				UI::DisplaySubtitle(message.c_str());
 			}
