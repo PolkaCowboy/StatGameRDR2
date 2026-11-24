@@ -9,6 +9,7 @@
     },
     {
       "rewarded": false,
+      "weight":  2.0,
       "rewardPool": [
         "Rat Flap Cap",
         "Tricorn Hat",

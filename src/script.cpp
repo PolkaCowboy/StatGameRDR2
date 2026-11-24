@@ -200,9 +200,11 @@ namespace
 		if (roll <= totalPlayerMinorStatPoints) {
 			//Find rewards that haven't been handed out
 			std::vector<size_t> eligible;
+			std::vector<float> weights;
 			for (size_t i = 0; i < rewards.rewards.size(); i++) {
-				if (!rewards.rewards[i].rewarded && !rewards.rewards[i].rewardPool.empty()) {
+				if (!rewards.rewards[i].rewarded && !rewards.rewards[i].rewardPool.empty() && rewards.rewards[i].weight > 0.0f) {
 					eligible.push_back(i);
+					weights.push_back(rewards.rewards[i].weight);
 				}
 			}
 
@@ -212,7 +214,7 @@ namespace
 			}
 
 			//Pick a Reward Pool
-			std::uniform_int_distribution<size_t> rewardDist(0, eligible.size() - 1);
+			std::discrete_distribution<size_t> rewardDist(weights.begin(), weights.end());
 			Reward& reward = rewards.rewards[eligible[rewardDist(Rng())]];
 
 			//Select actual item from the pool.
