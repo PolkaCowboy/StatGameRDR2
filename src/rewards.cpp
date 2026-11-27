@@ -1,5 +1,6 @@
 #include "rewards.h"
 #include "paths.h"
+#include "log.h"
 
 #include <filesystem>
 #include <fstream>
@@ -26,12 +27,12 @@ Rewards LoadRewards() {
 		return rewards;
 	}
 
-	nlohmann::json j = nlohmann::json::parse(file, nullptr, false);
-
-	if (j.is_discarded())
-		return rewards;
-
-	rewards = j.get<Rewards>();
+	try {
+		rewards = nlohmann::json::parse(file).get<Rewards>();
+	}
+	catch (const nlohmann::json::exception& e) {
+		Log::Write(std::format("rewards.json not loaded: {}", e.what()));
+	}
 
 	return rewards;
 

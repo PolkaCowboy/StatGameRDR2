@@ -20,6 +20,10 @@ namespace
 	// Highest rank SET_ATTRIBUTE_BASE_RANK will accept - anything above clamps to this.
 	constexpr int kMaxRank = 7;
 
+	// XP points at the start of each player core rank, same for Health, Stamina and Dead Eye.
+	// Read from the game; GET_DEFAULT_ATTRIBUTE_POINTS_NEEDED_FOR_RANK returns 0 for player cores.
+	constexpr int kRankPoints[kMaxRank + 1] = { 0, 50, 100, 200, 350, 550, 800, 1100 };
+
 	// Set once the levels are loaded or changed; from then on the game's ranks are held on them.
 	bool g_holdLevels = false;
 
@@ -38,15 +42,23 @@ namespace
 		}
 	}
 
+	const char* GetAttributeFriendlyName(ePedAttribute a) {
+		switch (a) {
+		case PA_HEALTH: return "Health";
+		case PA_STAMINA: return "Stamina";
+		case PA_SPECIALABILITY: return "Dead Eye";
+		}
+		return "Unknown";
+	}
+
 	// The game levels cores from XP on its own (running earns stamina XP) and works the rank out again
 	// from the XP total, undoing SET_ATTRIBUTE_BASE_RANK. So the XP is held at the start of each level,
 	// which is how Rockstar sets a horse's bonding level (abigail2_1.c func_1787).
 	// https://github.com/JayKoZa/RDR2-Decompiled-Scripts/blob/master/script_rel/abigail2_1.c
 	void ApplyLevels(Ped player) {
-		Hash model = ENTITY::GET_ENTITY_MODEL(player);
 		for (ePedAttribute a : { PA_HEALTH, PA_STAMINA, PA_SPECIALABILITY }) {
 			int level = CoreLevel(a);
-			int points = ATTRIBUTE::GET_DEFAULT_ATTRIBUTE_POINTS_NEEDED_FOR_RANK(model, a, level);
+			int points = kRankPoints[std::clamp(level, 0, kMaxRank)];
 			if (ATTRIBUTE::GET_ATTRIBUTE_POINTS(player, a) != points) {
 				ATTRIBUTE::SET_ATTRIBUTE_POINTS(player, a, points);
 			}
@@ -70,15 +82,6 @@ namespace
 			return true;
 		}
 		return false;
-	}
-
-	const char* GetAttributeFriendlyName(ePedAttribute a) {
-		switch (a) {
-		case PA_HEALTH: return "Health";
-		case PA_STAMINA: return "Stamina";
-		case PA_SPECIALABILITY: return "Dead Eye";
-		}
-		return "Unknown";
 	}
 
 	void Punish(Ped player, bool isMinorPunishment, int statRanksToRemove) {
